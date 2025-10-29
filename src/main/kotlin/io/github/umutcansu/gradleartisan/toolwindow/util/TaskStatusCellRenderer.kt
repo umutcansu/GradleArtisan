@@ -2,9 +2,7 @@ package io.github.umutcansu.gradleartisan.toolwindow.util
 
 import com.intellij.icons.AllIcons
 import com.intellij.ui.AnimatedIcon
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
-import com.intellij.util.IconUtil
 import com.intellij.util.ui.JBUI
 import io.github.umutcansu.gradleartisan.services.FavoriteTasksService
 import java.awt.BorderLayout
@@ -24,10 +22,8 @@ class TaskStatusCellRenderer(
     private val taskNameLabel = JBLabel()
     private val favoriteStarIcon = JBLabel()
 
-    private val scaledStarIcon: Icon = IconUtil.scale(AllIcons.Ide.Rating, null, 1.5f)
-    private val grayStar: Icon = IconUtil.desaturate(scaledStarIcon)
-    private val vibrantStar: Icon = IconUtil.colorize(scaledStarIcon, JBColor.ORANGE, false)
-
+    private val favoriteIcon: Icon = AllIcons.Nodes.Favorite
+    private val notFavoriteIcon: Icon = AllIcons.Nodes.NotFavoriteOnHover
     private val runningIcon: Icon = AnimatedIcon.Default()
 
     init {
@@ -38,7 +34,7 @@ class TaskStatusCellRenderer(
         panel.add(leftPanel, BorderLayout.CENTER)
         panel.add(favoriteStarIcon, BorderLayout.EAST)
         panel.isOpaque = true
-        favoriteStarIcon.border = JBUI.Borders.empty(0, 4, 0, 8)
+        favoriteStarIcon.border = JBUI.Borders.empty(0, 8, 0, 16)
     }
 
     override fun getListCellRendererComponent(
@@ -57,19 +53,14 @@ class TaskStatusCellRenderer(
 
         val isFavorite = favoriteTasksService.isFavorite(value)
 
+        favoriteStarIcon.icon = if (isFavorite) favoriteIcon else notFavoriteIcon
+
         if (isSelected) {
             panel.background = list.selectionBackground
             taskNameLabel.foreground = list.selectionForeground
-
-            val selectionColor = list.selectionForeground
-            val starToUse = if (isFavorite) vibrantStar else grayStar
-            favoriteStarIcon.icon = IconUtil.colorize(starToUse, selectionColor, false)
-
         } else {
             panel.background = list.background
             taskNameLabel.foreground = list.foreground
-
-            favoriteStarIcon.icon = if (isFavorite) vibrantStar else grayStar
         }
 
         (panel.getComponent(0) as JComponent).isOpaque = false
