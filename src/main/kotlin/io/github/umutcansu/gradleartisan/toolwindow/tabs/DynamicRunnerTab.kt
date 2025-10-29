@@ -5,7 +5,6 @@ import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
@@ -19,6 +18,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.textCompletion.TextFieldWithCompletion
+import com.intellij.util.ui.EmptyIcon
 import com.intellij.util.ui.JBUI
 import io.github.umutcansu.gradleartisan.toolwindow.util.TaskStatus
 import io.github.umutcansu.gradleartisan.services.DynamicTask
@@ -36,6 +36,7 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import javax.swing.BorderFactory
 import javax.swing.DefaultListModel
+import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -70,6 +71,28 @@ class DynamicRunnerTab(
     private var readFromFileMap: MutableMap<String, Boolean> = mutableMapOf()
     private var variablesValueMap: MutableMap<String, String> = mutableMapOf()
     private var hasUnsavedChanges = false
+
+    private val successIcon: Icon = try {
+        AllIcons.Status.Success
+    } catch (_: Throwable) {
+        try {
+            AllIcons.General.SuccessLogin
+        } catch (_: Throwable) {
+            EmptyIcon.create(16)
+        }
+    }
+
+    private val failIcon: Icon = try {
+        AllIcons.General.Error
+    } catch (_: Throwable) {
+        try {
+            AllIcons.General.Close
+        } catch (_: Throwable) {
+            EmptyIcon.create(16)
+        }
+    }
+
+    private val runningIcon: Icon = AnimatedIcon.Default()
 
     fun getPanel(): JComponent {
         val mainSplitPane =
@@ -364,9 +387,9 @@ class DynamicRunnerTab(
         val currentPreview = getCurrentTaskString()
         if (taskName == currentPreview) {
             statusIconLabel.icon = when (status) {
-                TaskStatus.RUNNING -> AnimatedIcon.Default()
-                TaskStatus.SUCCESS -> AllIcons.Status.Success
-                TaskStatus.FAILED -> AllIcons.General.Error
+                TaskStatus.RUNNING -> runningIcon
+                TaskStatus.SUCCESS -> successIcon
+                TaskStatus.FAILED -> failIcon
                 TaskStatus.IDLE -> null
             }
         } else {

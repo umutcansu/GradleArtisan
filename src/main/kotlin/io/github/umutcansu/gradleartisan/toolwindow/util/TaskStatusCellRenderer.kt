@@ -3,6 +3,7 @@ package io.github.umutcansu.gradleartisan.toolwindow.util
 import com.intellij.icons.AllIcons
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
+import com.intellij.util.ui.EmptyIcon
 import com.intellij.util.ui.JBUI
 import io.github.umutcansu.gradleartisan.services.FavoriteTasksService
 import java.awt.BorderLayout
@@ -22,8 +23,37 @@ class TaskStatusCellRenderer(
     private val taskNameLabel = JBLabel()
     private val favoriteStarIcon = JBLabel()
 
-    private val favoriteIcon: Icon = AllIcons.Nodes.Favorite
-    private val notFavoriteIcon: Icon = AllIcons.Nodes.NotFavoriteOnHover
+    private val favoriteIcon: Icon = try {
+        AllIcons.Nodes.Favorite
+    } catch (_: Throwable) {
+        EmptyIcon.create(16)
+    }
+
+    private val notFavoriteIcon: Icon = try {
+        AllIcons.Nodes.NotFavoriteOnHover
+    } catch (_: Throwable) {
+        EmptyIcon.create(16)
+    }
+
+    private val successIcon: Icon = try {
+        AllIcons.Status.Success
+    } catch (_: Throwable) {
+        try {
+            AllIcons.General.SuccessLogin
+        } catch (_: Throwable) {
+            EmptyIcon.create(16)
+        }
+    }
+
+    private val failIcon: Icon = try {
+        AllIcons.General.Error
+    } catch (_: Throwable) {
+        try {
+            AllIcons.General.Close
+        } catch (_: Throwable) {
+            EmptyIcon.create(16)
+        }
+    }
     private val runningIcon: Icon = AnimatedIcon.Default()
 
     init {
@@ -46,13 +76,12 @@ class TaskStatusCellRenderer(
 
         statusIcon.icon = when (taskStatusMap.getOrDefault(value, TaskStatus.IDLE)) {
             TaskStatus.RUNNING -> runningIcon
-            TaskStatus.SUCCESS -> AllIcons.Status.Success
-            TaskStatus.FAILED -> AllIcons.General.Error
+            TaskStatus.SUCCESS -> successIcon
+            TaskStatus.FAILED -> failIcon
             TaskStatus.IDLE -> null
         }
 
         val isFavorite = favoriteTasksService.isFavorite(value)
-
         favoriteStarIcon.icon = if (isFavorite) favoriteIcon else notFavoriteIcon
 
         if (isSelected) {
