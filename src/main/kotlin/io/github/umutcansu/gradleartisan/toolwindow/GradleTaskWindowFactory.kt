@@ -5,6 +5,7 @@ import com.intellij.execution.ExecutionManager
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.project.Project
@@ -29,16 +30,24 @@ class GradleTaskWindowFactory : ToolWindowFactory {
                         ?.settings?.taskNames?.firstOrNull() ?: return
 
                     if (artisanWindow.isTaskInOurList(taskName)) {
-                        handler.addProcessListener(object : ProcessAdapter() {
-                            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-                                if (event.text.contains("BUILD FAILED")) {
-                                    artisanWindow.updateTaskStatus(taskName, TaskStatus.FAILED)
-                                }
+                        handler.addProcessListener(object : ProcessListener {
+                            override fun startNotified(event: ProcessEvent) {
+
                             }
 
                             override fun processTerminated(event: ProcessEvent) {
                                 if (artisanWindow.getTaskStatus(taskName) == TaskStatus.RUNNING) {
                                     artisanWindow.updateTaskStatus(taskName, TaskStatus.SUCCESS)
+                                }
+                            }
+
+                            override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
+
+                            }
+
+                            override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+                                if (event.text.contains("BUILD FAILED")) {
+                                    artisanWindow.updateTaskStatus(taskName, TaskStatus.FAILED)
                                 }
                             }
                         })

@@ -26,7 +26,7 @@ class TaskStatusCellRenderer(
 
     private val scaledStarIcon: Icon = IconUtil.scale(AllIcons.Ide.Rating, null, 1.5f)
     private val grayStar: Icon = IconUtil.desaturate(scaledStarIcon)
-    private val vibrantStar: Icon = IconUtil.colorize(scaledStarIcon, JBColor.ORANGE)
+    private val vibrantStar: Icon = IconUtil.colorize(scaledStarIcon, JBColor.ORANGE, false)
 
     private val runningIcon: Icon = AnimatedIcon.Default()
 
@@ -63,7 +63,7 @@ class TaskStatusCellRenderer(
 
             val selectionColor = list.selectionForeground
             val starToUse = if (isFavorite) vibrantStar else grayStar
-            favoriteStarIcon.icon = IconUtil.colorize(starToUse, selectionColor)
+            favoriteStarIcon.icon = IconUtil.colorize(starToUse, selectionColor, false)
 
         } else {
             panel.background = list.background
