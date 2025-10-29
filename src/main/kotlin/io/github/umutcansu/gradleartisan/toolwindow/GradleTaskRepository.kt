@@ -6,6 +6,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.externalSystem.model.ProjectKeys
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
@@ -18,6 +19,7 @@ import org.jetbrains.plugins.groovy.lang.psi.GroovyFile
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrAssignmentExpression
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrMethodCall
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.literals.GrLiteral
+import java.nio.file.Paths
 
 class GradleTaskRepository(private val project: Project) {
 
@@ -38,7 +40,10 @@ class GradleTaskRepository(private val project: Project) {
         runReadAction {
             logDebug("Repository (PSI): Read action started.")
             val psiManager = PsiManager.getInstance(project)
-            val projectBaseDir = project.baseDir ?: return@runReadAction
+            //val projectBaseDir = project.baseDir ?: return@runReadAction
+            val projectBaseDir = project.basePath
+                ?.let { VirtualFileManager.getInstance().findFileByNioPath(Paths.get(it)) } ?: return@runReadAction
+
 
             val rootBuildFile = projectBaseDir.findChild("build.gradle") ?: projectBaseDir.findChild("build.gradle.kts")
             rootBuildFile?.let { psiManager.findFile(it)?.let { file -> parsePsiFile(file, properties) } }
@@ -111,22 +116,22 @@ class GradleTaskRepository(private val project: Project) {
             if (androidModel != null) {
                 androidModel.androidProject.variantsBuildInformation.forEach { variantInfo ->
                     variantInfo.buildInformation.let { buildInfo ->
-                        allTasks.add(buildInfo.assembleTaskName)
+                        allTasks.add(buildInfo.assembleTaskName.toString())
                         buildInfo.bundleTaskName?.let { allTasks.add(it) }
                         buildInfo.apkFromBundleTaskName?.let { allTasks.add(it) }
                     }
                 }
                 androidModel.variants.forEach { variant ->
                     variant.mainArtifact.let { artifact ->
-                        allTasks.add(artifact.compileTaskName)
-                        artifact.assembleTaskName.let { allTasks.add(it) }
+                        allTasks.add(artifact.compileTaskName.toString())
+                        artifact.assembleTaskName.let { allTasks.add(it.toString()) }
                     }
                     variant.hostTestArtifacts.forEach { artifact ->
-                        allTasks.add(artifact.compileTaskName)
+                        allTasks.add(artifact.compileTaskName.toString())
                         artifact.assembleTaskName?.let { allTasks.add(it) }
                     }
                     variant.deviceTestArtifacts.forEach { artifact ->
-                        allTasks.add(artifact.compileTaskName)
+                        allTasks.add(artifact.compileTaskName.toString())
                         artifact.assembleTaskName?.let { allTasks.add(it) }
                     }
                 }

@@ -4,6 +4,9 @@ import com.intellij.codeInsight.completion.CodeCompletionHandlerBase
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteIntentReadAction
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
 import com.intellij.openapi.externalSystem.service.execution.ProgressExecutionMode
@@ -145,10 +148,11 @@ class DynamicRunnerTab(
         SwingUtilities.invokeLater {
             val editor: Editor = templateTextField.editor ?: return@invokeLater
 
-            editor.document.addDocumentListener(object :
-                com.intellij.openapi.editor.event.DocumentListener {
+
+
+            editor.document.addDocumentListener(object : com.intellij.openapi.editor.event.DocumentListener {
                 override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
-                    SwingUtilities.invokeLater {
+                    WriteCommandAction.runWriteCommandAction(project) {
                         if (editor.selectionModel.hasSelection()) {
                             val selectionEnd = editor.selectionModel.selectionEnd
                             editor.selectionModel.removeSelection()
@@ -156,10 +160,13 @@ class DynamicRunnerTab(
                         }
                     }
 
-                    updateDynamicUIAndPreview()
-                    hasUnsavedChanges = true
+                    ApplicationManager.getApplication().invokeLater {
+                        updateDynamicUIAndPreview()
+                        hasUnsavedChanges = true
+                    }
                 }
             })
+
 
             editor.contentComponent.addKeyListener(object : KeyAdapter() {
                 override fun keyReleased(e: KeyEvent) {
@@ -358,7 +365,7 @@ class DynamicRunnerTab(
         if (taskName == currentPreview) {
             statusIconLabel.icon = when (status) {
                 TaskStatus.RUNNING -> AnimatedIcon.Default()
-                TaskStatus.SUCCESS -> AllIcons.Actions.Commit
+                TaskStatus.SUCCESS -> AllIcons.Status.Success
                 TaskStatus.FAILED -> AllIcons.General.Error
                 TaskStatus.IDLE -> null
             }

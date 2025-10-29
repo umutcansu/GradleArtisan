@@ -50,7 +50,7 @@ class TaskStatusCellRenderer(
 
         statusIcon.icon = when (taskStatusMap.getOrDefault(value, TaskStatus.IDLE)) {
             TaskStatus.RUNNING -> runningIcon
-            TaskStatus.SUCCESS -> AllIcons.Actions.Commit
+            TaskStatus.SUCCESS -> AllIcons.Status.Success
             TaskStatus.FAILED -> AllIcons.General.Error
             TaskStatus.IDLE -> null
         }
