@@ -1,0 +1,12 @@
+<idea-plugin>
+
+    <extensions defaultExtensionNs="com.intellij">
+
+        <toolWindow
+                id="Gradle Artisan"
+                anchor="bottom"
+                icon="/icons/pluginIcon.svg"
+                factoryClass="io.github.umutcansu.gradleartisan.toolwindow.GradleTaskWindowFactory"/>
+    </extensions>
+
+</idea-plugin>

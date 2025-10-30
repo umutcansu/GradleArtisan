@@ -45,16 +45,11 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends optional="true" config-file="my-plugin-android-support.xml">org.jetbrains.android</depends>
+    <depends optional="true" config-file="android-support.xml">org.jetbrains.android</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow
-                id="Gradle Artisan"
-                anchor="bottom"
-                icon="/icons/pluginIcon.svg"
-                factoryClass="io.github.umutcansu.gradleartisan.toolwindow.GradleTaskWindowFactory"/>
 
     </extensions>
 </idea-plugin>

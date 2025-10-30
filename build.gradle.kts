@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("java")
@@ -6,7 +7,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.6"
+version = "1.0.7"
 
 repositories {
     mavenCentral()
@@ -17,8 +18,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        //androidStudio("2025.2.1.6")
-        androidStudio("2024.1.2.12")
+        androidStudio("2025.2.1.6")
+        //androidStudio("2024.1.2.12")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
 
@@ -43,7 +44,18 @@ intellijPlatform {
     publishing {
         token.set(providers.gradleProperty("ORG_JETBRAINS_INTELLIJ_PLATFORM_PUBLISH_TOKEN"))
     }
+
+    pluginVerification {
+        failureLevel.set(listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
+            VerifyPluginTask.FailureLevel.DEPRECATED_API_USAGES,
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
+        ))
+    }
 }
+
+
 
 tasks {
     withType<JavaCompile> {
