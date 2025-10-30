@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.idea.proto.com.google.protobuf.type
 
 plugins {
     id("java")
@@ -7,7 +6,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.4"
+version = "1.0.5"
 
 repositories {
     mavenCentral()
@@ -33,12 +32,11 @@ intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "241"
-            untilBuild = "251*"
         }
 
         changeNotes = """
             Summary:
-            Update icons
+            Update version
 
         """.trimIndent()
     }
