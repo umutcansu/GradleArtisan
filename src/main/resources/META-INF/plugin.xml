@@ -3,7 +3,7 @@
 
     <name>GradleArtisan</name>
 
-    <idea-version since-build="241"/>
+    <idea-version since-build="241" until-build="251.*"/>
     <vendor url="https://umutcansu.github.io/" email="umutcansu@gmail.com">Umut Cansu</vendor>
 
     <description><![CDATA[

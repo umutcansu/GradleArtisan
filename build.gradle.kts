@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.idea.proto.com.google.protobuf.type
+
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
@@ -16,18 +18,22 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        androidStudio("2025.2.1.6")
+        //androidStudio("2025.2.1.6")
+        androidStudio("2024.1.2.12")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
 
         bundledPlugin("org.jetbrains.android")
+
     }
 }
+
 
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "241"
+            untilBuild = "251*"
         }
 
         changeNotes = """
