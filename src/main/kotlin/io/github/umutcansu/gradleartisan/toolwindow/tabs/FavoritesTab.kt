@@ -1,7 +1,6 @@
 package io.github.umutcansu.gradleartisan.toolwindow.tabs
 
 import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionPopupMenu
@@ -14,7 +13,6 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.util.IconUtil
 import io.github.umutcansu.gradleartisan.toolwindow.util.TaskStatus
 import io.github.umutcansu.gradleartisan.services.FavoriteTasksService
 import io.github.umutcansu.gradleartisan.services.GradleTaskRepository
@@ -24,7 +22,6 @@ import java.awt.BorderLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.DefaultListModel
-import javax.swing.Icon
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
 import javax.swing.SwingUtilities

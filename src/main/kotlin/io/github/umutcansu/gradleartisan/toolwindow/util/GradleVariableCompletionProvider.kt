@@ -4,7 +4,6 @@ import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.lookup.CharFilter
 import com.intellij.codeInsight.lookup.LookupElementBuilder
-import com.intellij.icons.AllIcons
 import com.intellij.util.textCompletion.TextCompletionProvider
 import io.github.umutcansu.gradleartisan.services.GradleTaskRepository
 
@@ -23,7 +22,7 @@ class GradleVariableCompletionProvider(private val taskRepository: GradleTaskRep
         if (before == '$') {
             val matcher = result.withPrefixMatcher(prefix)
             matcher.addAllElements(
-                taskRepository.getExtPropertiesFromPsi().keys.map { LookupElementBuilder.create(it).withIcon(AllIcons.Nodes.Property) }
+                taskRepository.getExtPropertiesFromPsi().keys.map { LookupElementBuilder.create(it).withIcon(MyIcons.Property) }
             )
         }
     }

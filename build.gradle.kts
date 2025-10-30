@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.3"
+version = "1.0.4"
 
 repositories {
     mavenCentral()
@@ -32,7 +32,7 @@ intellijPlatform {
 
         changeNotes = """
             Summary:
-            Fixed deprecated API usage and resolved version compatibility issues across IntelliJ and Android Studio.
+            Update icons
 
         """.trimIndent()
     }

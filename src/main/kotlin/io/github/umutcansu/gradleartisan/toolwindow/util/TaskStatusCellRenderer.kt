@@ -1,6 +1,5 @@
 package io.github.umutcansu.gradleartisan.toolwindow.util
 
-import com.intellij.icons.AllIcons
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.EmptyIcon
@@ -24,35 +23,27 @@ class TaskStatusCellRenderer(
     private val favoriteStarIcon = JBLabel()
 
     private val favoriteIcon: Icon = try {
-        AllIcons.Nodes.Favorite
+        MyIcons.Star
     } catch (_: Throwable) {
         EmptyIcon.create(16)
     }
 
     private val notFavoriteIcon: Icon = try {
-        AllIcons.Nodes.NotFavoriteOnHover
+        MyIcons.StarEmpty
     } catch (_: Throwable) {
         EmptyIcon.create(16)
     }
 
     private val successIcon: Icon = try {
-        AllIcons.Status.Success
+        MyIcons.Success
     } catch (_: Throwable) {
-        try {
-            AllIcons.General.SuccessLogin
-        } catch (_: Throwable) {
-            EmptyIcon.create(16)
-        }
+        EmptyIcon.create(16)
     }
 
     private val failIcon: Icon = try {
-        AllIcons.General.Error
+        MyIcons.Failed
     } catch (_: Throwable) {
-        try {
-            AllIcons.General.Close
-        } catch (_: Throwable) {
-            EmptyIcon.create(16)
-        }
+        EmptyIcon.create(16)
     }
     private val runningIcon: Icon = AnimatedIcon.Default()
 

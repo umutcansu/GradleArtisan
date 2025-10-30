@@ -3,7 +3,6 @@ package io.github.umutcansu.gradleartisan.toolwindow.tabs
 import com.intellij.codeInsight.completion.CodeCompletionHandlerBase
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
@@ -26,6 +25,7 @@ import io.github.umutcansu.gradleartisan.services.DynamicTaskService
 import io.github.umutcansu.gradleartisan.services.FavoriteTasksService
 import io.github.umutcansu.gradleartisan.services.GradleTaskRepository
 import io.github.umutcansu.gradleartisan.toolwindow.util.GradleVariableCompletionProvider
+import io.github.umutcansu.gradleartisan.toolwindow.util.MyIcons
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.awt.BorderLayout
 import java.awt.FlowLayout
@@ -73,23 +73,15 @@ class DynamicRunnerTab(
     private var hasUnsavedChanges = false
 
     private val successIcon: Icon = try {
-        AllIcons.Status.Success
+        MyIcons.Success
     } catch (_: Throwable) {
-        try {
-            AllIcons.General.SuccessLogin
-        } catch (_: Throwable) {
-            EmptyIcon.create(16)
-        }
+        EmptyIcon.create(16)
     }
 
     private val failIcon: Icon = try {
-        AllIcons.General.Error
+        MyIcons.Failed
     } catch (_: Throwable) {
-        try {
-            AllIcons.General.Close
-        } catch (_: Throwable) {
-            EmptyIcon.create(16)
-        }
+        EmptyIcon.create(16)
     }
 
     private val runningIcon: Icon = AnimatedIcon.Default()
@@ -111,7 +103,7 @@ class DynamicRunnerTab(
         panel.add(JBScrollPane(savedTasksList), BorderLayout.CENTER)
 
         val buttonPanel = JPanel(FlowLayout(FlowLayout.LEFT))
-        val newButton = JButton(AllIcons.General.Add)
+        val newButton = JButton(MyIcons.Add)
         newButton.toolTipText = "Create New Template"
         newButton.addActionListener {
             if (hasUnsavedChanges) {
@@ -138,7 +130,7 @@ class DynamicRunnerTab(
             statusIconLabel.icon = null
         }
 
-        val deleteButton = JButton(AllIcons.General.Remove)
+        val deleteButton = JButton(MyIcons.Remove)
         deleteButton.toolTipText = "Delete Selected Template"
         deleteButton.addActionListener { deleteSelectedDynamicTask() }
 
@@ -522,7 +514,7 @@ class DynamicRunnerTab(
         hasUnsavedChanges = false
         setEditingMode(true)
 
-        statusIconLabel.icon = AllIcons.Actions.Commit
+        statusIconLabel.icon = MyIcons.Success
         val timer = Timer(2000) { statusIconLabel.icon = null }
         timer.isRepeats = false
         timer.start()
