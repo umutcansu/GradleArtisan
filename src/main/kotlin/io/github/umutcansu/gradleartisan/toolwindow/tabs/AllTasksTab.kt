@@ -83,7 +83,7 @@ class AllTasksTab(
             private var newTasks: List<String> = emptyList()
 
             override fun run(indicator: ProgressIndicator) {
-                newTasks = taskRepository.getAllTasks()
+                newTasks = taskRepository.getAllTasksStable(project)
             }
 
             override fun onSuccess() {

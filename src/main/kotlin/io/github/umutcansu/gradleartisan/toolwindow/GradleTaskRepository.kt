@@ -102,42 +102,85 @@ class GradleTaskRepository(private val project: Project) {
         }
     }
 
-    fun getAllTasks(): List<String> {
+
+    fun getAllTasksStable(project: Project): List<String> {
         logDebug("Repository: Searching for all Gradle tasks...")
-        val projectBasePath = project.basePath ?: return emptyList()
-        val projectInfo = ExternalSystemApiUtil.findProjectInfo(project, GradleConstants.SYSTEM_ID, projectBasePath) ?: return emptyList()
-        val projectStructure = projectInfo.externalProjectStructure ?: return emptyList()
+        val projectBasePath = project.basePath ?: run {
+            logDebug("Repository: Project base path is null, returning empty list.")
+            return emptyList()
+        }
+
+        val projectInfo = ExternalSystemApiUtil.findProjectInfo(
+            project,
+            GradleConstants.SYSTEM_ID,
+            projectBasePath
+        ) ?: run {
+            logDebug("Repository: Could not find ExternalSystemProjectInfo, returning empty list.")
+            return emptyList()
+        }
+
+        val projectStructure = projectInfo.externalProjectStructure ?: run {
+            logDebug("Repository: External project structure is null, returning empty list.")
+            return emptyList()
+        }
+
         val modules = ExternalSystemApiUtil.findAll(projectStructure, ProjectKeys.MODULE)
+        if (modules.isEmpty()) {
+            logDebug("Repository: No modules found in project structure.")
+            return emptyList()
+        }
+
         val allTasks = mutableSetOf<String>()
+
         for (module in modules) {
-            val standardTasks = ExternalSystemApiUtil.findAll(module, ProjectKeys.TASK)
-            standardTasks.mapTo(allTasks) { it.data.name }
-            val androidModel = module.children.find { it.data is GradleAndroidModelData }?.data as? GradleAndroidModelData
-            if (androidModel != null) {
-                androidModel.androidProject.variantsBuildInformation.forEach { variantInfo ->
-                    variantInfo.buildInformation.let { buildInfo ->
-                        allTasks.add(buildInfo.assembleTaskName.toString())
-                        buildInfo.bundleTaskName?.let { allTasks.add(it) }
-                        buildInfo.apkFromBundleTaskName?.let { allTasks.add(it) }
+            try {
+                val standardTasks = ExternalSystemApiUtil.findAll(module, ProjectKeys.TASK)
+                standardTasks.mapTo(allTasks) { it.data.name }
+            } catch (e: Throwable) {
+                logDebug("Repository: Error fetching standard tasks for module ${module.data.id}: ${e.message}")
+            }
+
+            try {
+                val androidModel = module.children
+                    .find { it.data is GradleAndroidModelData }
+                    ?.data as? GradleAndroidModelData
+
+                if (androidModel != null) {
+                    androidModel.androidProject?.variantsBuildInformation?.forEach { variantInfo ->
+                        variantInfo?.buildInformation?.let { buildInfo ->
+                            buildInfo.assembleTaskName?.let { allTasks.add(it) }
+                            buildInfo.bundleTaskName?.let { allTasks.add(it) }
+                            buildInfo.apkFromBundleTaskName?.let { allTasks.add(it) }
+                        }
+                    }
+
+                    androidModel.variants?.forEach { variant ->
+                        // Ana artifact
+                        variant?.mainArtifact?.let { artifact ->
+                            artifact.compileTaskName?.let { allTasks.add(it) }
+                            artifact.assembleTaskName?.let { allTasks.add(it) }
+                        }
+                        // Host test artifact'ları (örn. unit test)
+                        variant?.hostTestArtifacts?.forEach { artifact ->
+                            artifact?.compileTaskName?.let { allTasks.add(it) }
+                            artifact?.assembleTaskName?.let { allTasks.add(it) }
+                        }
+                        // Device test artifact'ları (örn. enstrümantasyon testi)
+                        variant?.deviceTestArtifacts?.forEach { artifact ->
+                            artifact?.compileTaskName?.let { allTasks.add(it) }
+                            artifact?.assembleTaskName?.let { allTasks.add(it) }
+                        }
                     }
                 }
-                androidModel.variants.forEach { variant ->
-                    variant.mainArtifact.let { artifact ->
-                        allTasks.add(artifact.compileTaskName.toString())
-                        artifact.assembleTaskName.let { allTasks.add(it.toString()) }
-                    }
-                    variant.hostTestArtifacts.forEach { artifact ->
-                        allTasks.add(artifact.compileTaskName.toString())
-                        artifact.assembleTaskName?.let { allTasks.add(it) }
-                    }
-                    variant.deviceTestArtifacts.forEach { artifact ->
-                        allTasks.add(artifact.compileTaskName.toString())
-                        artifact.assembleTaskName?.let { allTasks.add(it) }
-                    }
-                }
+            } catch (e: Throwable) {
+                logDebug("Repository: Error processing Android model for module ${module.data.id}. " +
+                        "This might be due to an AGP API incompatibility and is safely ignored. " +
+                        "Error: ${e.message}")
             }
         }
+
         logDebug("Repository: A total of ${allTasks.size} unique tasks were found.")
         return allTasks.sorted()
     }
+
 }

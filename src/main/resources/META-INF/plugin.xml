@@ -45,7 +45,7 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>org.jetbrains.android</depends>
+    <depends optional="true" config-file="my-plugin-android-support.xml">org.jetbrains.android</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
 
