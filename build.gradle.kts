@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.7"
+version = "1.0.10"
 
 repositories {
     mavenCentral()
@@ -19,7 +19,7 @@ repositories {
 dependencies {
     intellijPlatform {
         androidStudio("2025.2.1.6")
-        //androidStudio("2024.1.2.12")
+        //androidStudio("2024.3.2.15")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
 

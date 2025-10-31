@@ -1,9 +1,10 @@
 package io.github.umutcansu.gradleartisan.services
 
-import com.android.tools.idea.gradle.project.model.GradleAndroidModelData
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ProjectKeys
+import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -103,84 +104,103 @@ class GradleTaskRepository(private val project: Project) {
     }
 
 
-    fun getAllTasksStable(project: Project): List<String> {
+    fun getAllTasksStable(): List<String> {
         logDebug("Repository: Searching for all Gradle tasks...")
-        val projectBasePath = project.basePath ?: run {
-            logDebug("Repository: Project base path is null, returning empty list.")
-            return emptyList()
-        }
-
-        val projectInfo = ExternalSystemApiUtil.findProjectInfo(
-            project,
-            GradleConstants.SYSTEM_ID,
-            projectBasePath
-        ) ?: run {
-            logDebug("Repository: Could not find ExternalSystemProjectInfo, returning empty list.")
-            return emptyList()
-        }
-
-        val projectStructure = projectInfo.externalProjectStructure ?: run {
-            logDebug("Repository: External project structure is null, returning empty list.")
-            return emptyList()
-        }
-
-        val modules = ExternalSystemApiUtil.findAll(projectStructure, ProjectKeys.MODULE)
-        if (modules.isEmpty()) {
-            logDebug("Repository: No modules found in project structure.")
-            return emptyList()
-        }
-
         val allTasks = mutableSetOf<String>()
 
-        for (module in modules) {
-            try {
-                val standardTasks = ExternalSystemApiUtil.findAll(module, ProjectKeys.TASK)
-                standardTasks.mapTo(allTasks) { it.data.name }
-            } catch (e: Throwable) {
-                logDebug("Repository: Error fetching standard tasks for module ${module.data.id}: ${e.message}")
-            }
+        try {
+            val projectBasePath = project.basePath ?: return emptyList()
+            val projectInfo = ExternalSystemApiUtil.findProjectInfo(project, GradleConstants.SYSTEM_ID, projectBasePath)
+                ?: return emptyList()
 
-            try {
-                val androidModel = module.children
-                    .find { it.data is GradleAndroidModelData }
-                    ?.data as? GradleAndroidModelData
+            val projectStructure = projectInfo.externalProjectStructure ?: return emptyList()
+            val modules = ExternalSystemApiUtil.findAll(projectStructure, ProjectKeys.MODULE)
 
-                if (androidModel != null) {
-                    androidModel.androidProject?.variantsBuildInformation?.forEach { variantInfo ->
-                        variantInfo?.buildInformation?.let { buildInfo ->
-                            buildInfo.assembleTaskName?.let { allTasks.add(it) }
-                            buildInfo.bundleTaskName?.let { allTasks.add(it) }
-                            buildInfo.apkFromBundleTaskName?.let { allTasks.add(it) }
-                        }
-                    }
-
-                    androidModel.variants?.forEach { variant ->
-                        // Ana artifact
-                        variant?.mainArtifact?.let { artifact ->
-                            artifact.compileTaskName?.let { allTasks.add(it) }
-                            artifact.assembleTaskName?.let { allTasks.add(it) }
-                        }
-                        // Host test artifact'ları (örn. unit test)
-                        variant?.hostTestArtifacts?.forEach { artifact ->
-                            artifact?.compileTaskName?.let { allTasks.add(it) }
-                            artifact?.assembleTaskName?.let { allTasks.add(it) }
-                        }
-                        // Device test artifact'ları (örn. enstrümantasyon testi)
-                        variant?.deviceTestArtifacts?.forEach { artifact ->
-                            artifact?.compileTaskName?.let { allTasks.add(it) }
-                            artifact?.assembleTaskName?.let { allTasks.add(it) }
-                        }
-                    }
+            for (module in modules) {
+                try {
+                    ExternalSystemApiUtil.findAll(module, ProjectKeys.TASK)
+                        .mapTo(allTasks) { it.data.name }
+                } catch (e: Exception) {
+                    logDebug("Repository: Error fetching standard tasks for module ${module.data.id}: ${e.message}")
                 }
-            } catch (e: Throwable) {
-                logDebug("Repository: Error processing Android model for module ${module.data.id}. " +
-                        "This might be due to an AGP API incompatibility and is safely ignored. " +
-                        "Error: ${e.message}")
+
+                processAndroidTasksWithReflection(module, allTasks)
             }
+
+        } catch (e: Throwable) {
+            logDebug("Repository: Critical error during task search: ${e.message}")
         }
 
         logDebug("Repository: A total of ${allTasks.size} unique tasks were found.")
         return allTasks.sorted()
+    }
+
+    private fun processAndroidTasksWithReflection(module: DataNode<ModuleData>, allTasks: MutableSet<String>) {
+        try {
+            val modelClassName = "com.android.tools.idea.gradle.project.model.GradleAndroidModelData"
+            val modelClass = Class.forName(modelClassName) // ClassNotFoundException fırlatabilir
+
+            val androidModelDataNode = module.children.find { modelClass.isInstance(it.data) }
+            val androidModel: Any? = androidModelDataNode?.data // Tip 'Any?' oldu
+
+            if (androidModel != null) {
+
+                val androidProject = safeInvoke(androidModel, "getAndroidProject")
+                (androidProject?.let { safeInvoke(it, "getVariantsBuildInformation") } as? Collection<*>)?.forEach { variantInfo ->
+                    val buildInfo = variantInfo?.let { safeInvoke(it, "getBuildInformation") }
+                    if (buildInfo != null) {
+                        addTask(safeInvoke(buildInfo, "getAssembleTaskName"), allTasks)
+                        addTask(safeInvoke(buildInfo, "getBundleTaskName"), allTasks)
+                        addTask(safeInvoke(buildInfo, "getApkFromBundleTaskName"), allTasks)
+                    }
+                }
+
+                (safeInvoke(androidModel, "getVariants") as? Collection<*>)?.forEach { variant ->
+                    if (variant == null) return@forEach
+
+                    val mainArtifact = safeInvoke(variant, "getMainArtifact")
+                    if (mainArtifact != null) {
+                        addTask(safeInvoke(mainArtifact, "getCompileTaskName"), allTasks)
+                        addTask(safeInvoke(mainArtifact, "getAssembleTaskName"), allTasks)
+                    }
+
+                    (safeInvoke(variant, "getHostTestArtifacts") as? Collection<*>)?.forEach { artifact ->
+                        if (artifact != null) {
+                            addTask(safeInvoke(artifact, "getCompileTaskName"), allTasks)
+                            addTask(safeInvoke(artifact, "getAssembleTaskName"), allTasks)
+                        }
+                    }
+
+                    (safeInvoke(variant, "getDeviceTestArtifacts") as? Collection<*>)?.forEach { artifact ->
+                        if (artifact != null) {
+                            addTask(safeInvoke(artifact, "getCompileTaskName"), allTasks)
+                            addTask(safeInvoke(artifact, "getAssembleTaskName"), allTasks)
+                        }
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            logDebug("Repository: Error processing Android model (via Reflection) for module ${module.data.id}. " +
+                    "This is safely ignored. Error: ${e.message}")
+        }
+    }
+
+    private fun safeInvoke(receiver: Any, methodName: String): Any? {
+        return try {
+            val method = receiver.javaClass.getMethod(methodName)
+            method.invoke(receiver)
+        } catch (e: Exception) {
+            logDebug("safeInvoke failed for '$methodName' on ${receiver.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    private fun addTask(task: Any?, allTasks: MutableSet<String>) {
+        (task as? String)?.let {
+            if (it.isNotBlank()) {
+                allTasks.add(it)
+            }
+        }
     }
 
 }
