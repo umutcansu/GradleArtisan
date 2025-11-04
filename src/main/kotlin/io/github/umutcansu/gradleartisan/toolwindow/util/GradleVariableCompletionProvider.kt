@@ -22,7 +22,7 @@ class GradleVariableCompletionProvider(private val taskRepository: GradleTaskRep
         if (before == '$') {
             val matcher = result.withPrefixMatcher(prefix)
             matcher.addAllElements(
-                taskRepository.getExtPropertiesFromPsi().keys.map { LookupElementBuilder.create(it).withIcon(MyIcons.Property) }
+                taskRepository.getAllGradleExtProperties().keys.map { LookupElementBuilder.create(it).withIcon(MyIcons.Property) }
             )
         }
     }

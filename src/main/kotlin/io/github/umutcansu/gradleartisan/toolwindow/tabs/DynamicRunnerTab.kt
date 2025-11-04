@@ -243,7 +243,7 @@ class DynamicRunnerTab(
 
     fun getCurrentTaskString(): String {
         var templateResult = templateTextField.text
-        val latestProps = taskRepository.getExtPropertiesFromPsi()
+        val latestProps = taskRepository.getAllGradleExtProperties()
         val knownVariableNames = latestProps.keys
         val variableNamesInTemplate = findVariablesInTemplate(templateResult, knownVariableNames)
 
@@ -261,7 +261,7 @@ class DynamicRunnerTab(
 
     private fun updateDynamicUIAndPreview() {
         val template = templateTextField.text
-        val latestProps = taskRepository.getExtPropertiesFromPsi()
+        val latestProps = taskRepository.getAllGradleExtProperties()
         val knownVariableNames = latestProps.keys
         val variableNames = findVariablesInTemplate(template, knownVariableNames)
         variablesPanel.removeAll()
