@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.10"
+version = "1.0.11"
 
 repositories {
     mavenCentral()
@@ -37,8 +37,7 @@ intellijPlatform {
 
         changeNotes = """
             Summary:
-            Update plugin.xml and gradle tasks list method
-
+            Change parsePsiGradleFile structure
         """.trimIndent()
     }
     publishing {

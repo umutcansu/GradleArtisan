@@ -7,19 +7,26 @@ import com.intellij.openapi.externalSystem.model.ProjectKeys
 import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.VirtualFileVisitor
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
 import org.jetbrains.kotlin.psi.KtBinaryExpression
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import org.jetbrains.plugins.groovy.lang.psi.GroovyFile
+import org.jetbrains.plugins.groovy.lang.psi.GroovyRecursiveElementVisitor
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrAssignmentExpression
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrMethodCall
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.literals.GrLiteral
+import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.path.GrIndexProperty
 import java.nio.file.Paths
 
 class GradleTaskRepository(private val project: Project) {
@@ -34,74 +41,145 @@ class GradleTaskRepository(private val project: Project) {
             LOG.warn("[Gradle Artisan] $message")
         }
     }
-
-    fun getExtPropertiesFromPsi(): Map<String, String> {
+    fun getAllGradleExtProperties(): Map<String, String> {
         val properties = mutableMapOf<String, String>()
 
         runReadAction {
-            logDebug("Repository (PSI): Read action started.")
+            logDebug("Repository (PSI): Scanning all Gradle files...")
             val psiManager = PsiManager.getInstance(project)
-            //val projectBaseDir = project.baseDir ?: return@runReadAction
+
             val projectBaseDir = project.basePath
                 ?.let { VirtualFileManager.getInstance().findFileByNioPath(Paths.get(it)) } ?: return@runReadAction
 
 
-            val rootBuildFile = projectBaseDir.findChild("build.gradle") ?: projectBaseDir.findChild("build.gradle.kts")
-            rootBuildFile?.let { psiManager.findFile(it)?.let { file -> parsePsiFile(file, properties) } }
+            val gradleFiles = mutableListOf<VirtualFile>()
+            VfsUtilCore.visitChildrenRecursively(projectBaseDir, object : VirtualFileVisitor<Any>() {
+                override fun visitFile(file: VirtualFile): Boolean {
+                    if (!file.isDirectory && (file.name == "build.gradle" || file.name == "build.gradle.kts")) {
+                        gradleFiles.add(file)
+                    }
+                    return true
+                }
+            })
 
-            val appModuleDir = projectBaseDir.findChild("app")
-            val appBuildFile = appModuleDir?.findChild("build.gradle") ?: appModuleDir?.findChild("build.gradle.kts")
-            appBuildFile?.let { psiManager.findFile(it)?.let { file -> parsePsiFile(file, properties) } }
+            logDebug("Repository (PSI): Found ${gradleFiles.size} Gradle files to analyze.")
+
+
+            for (file in gradleFiles) {
+                psiManager.findFile(file)?.let { psiFile ->
+                    parsePsiGradleFile(psiFile, properties)
+                }
+            }
         }
-        logDebug("Repository (PSI): Analysis completed. A total of ${properties.size} variables were found.")
+
+        logDebug("Repository (PSI): Analysis complete. Found ${properties.size} variables.")
         return properties
     }
 
-    fun parsePsiFile(psiFile: PsiFile, properties: MutableMap<String, String>) {
+    private fun parsePsiGradleFile(psiFile: PsiFile, properties: MutableMap<String, String>) {
         when (psiFile) {
-            is GroovyFile -> {
-                logDebug("Repository (PSI): Analyzing Groovy file: ${psiFile.name}")
-                psiFile.statements.forEach { statement ->
-                    if (statement is GrMethodCall && statement.invokedExpression.text == "ext") {
-                        logDebug("Repository (PSI): Found block 'ext' in '${psiFile.name}'.")
-                        statement.closureArguments.firstOrNull()?.let { closure ->
-                            closure.statements.forEach { innerStatement ->
-                                if (innerStatement is GrAssignmentExpression) {
-                                    val name = innerStatement.lValue.text
-                                    val value = (innerStatement.rValue as? GrLiteral)?.value as? String
-                                    if (name != null && value != null) {
-                                        logDebug("Repository (PSI): Variable found -> $name = $value")
-                                        properties[name] = value
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            is KtFile -> {
-                logDebug("Repository (PSI): Analyzing Kotlin file: ${psiFile.name}")
-                psiFile.accept(object : KtTreeVisitorVoid() {
-                    override fun visitBinaryExpression(expression: KtBinaryExpression) {
-                        super.visitBinaryExpression(expression)
+            is GroovyFile -> parseGroovyGradleFile(psiFile, properties)
+            is KtFile -> parseKotlinGradleFile(psiFile, properties)
+        }
+    }
 
-                        if (expression.operationReference.getReferencedName() == "=") {
-                            val left = expression.left
-                            if (left is KtArrayAccessExpression && left.arrayExpression?.text == "extra") {
-                                val name = left.indexExpressions.firstOrNull()?.text?.trim('"')
-                                val value = (expression.right as? KtStringTemplateExpression)?.text?.trim('"')
+    private fun parseGroovyGradleFile(file: GroovyFile, properties: MutableMap<String, String>) {
+        logDebug("Repository (PSI): Analyzing Groovy Gradle file: ${file.name}")
 
+        file.accept(object : GroovyRecursiveElementVisitor() {
+            override fun visitMethodCall(call: GrMethodCall) {
+                super.visitMethodCall(call)
+                val invokedText = call.invokedExpression.text
+
+                // ext { key = value }
+                if (invokedText == "ext") {
+                    call.closureArguments.firstOrNull()?.let { closure ->
+                        closure.statements.forEach { stmt ->
+                            if (stmt is GrAssignmentExpression) {
+                                val name = stmt.lValue.text
+                                val value = (stmt.rValue as? GrLiteral)?.value?.toString()
                                 if (name != null && value != null) {
-                                    logDebug("Repository (PSI): Variable found -> $name = $value")
+                                    logDebug("ext block -> $name = $value")
                                     properties[name] = value
                                 }
                             }
                         }
                     }
-                })
+                }
+
+                // project.ext.set("key", "value")
+                if (invokedText.endsWith("ext.set") || invokedText == "ext.set") {
+                    val args = call.argumentList.allArguments
+                    if (args.size >= 2) {
+                        val name = (args[0] as? GrLiteral)?.value?.toString()
+                        val value = (args[1] as? GrLiteral)?.value?.toString()
+                        if (name != null && value != null) {
+                            logDebug("ext.set -> $name = $value")
+                            properties[name] = value
+                        }
+                    }
+                }
             }
-        }
+
+            override fun visitAssignmentExpression(expression: GrAssignmentExpression) {
+                super.visitAssignmentExpression(expression)
+
+                // project.ext["key"] = "value"
+                val lValue = expression.lValue
+                if (lValue is GrIndexProperty && (lValue.invokedExpression.text.endsWith("ext"))) {
+                    val name = (lValue.argumentList.allArguments.firstOrNull() as? GrLiteral)?.value?.toString()
+                    val value = (expression.rValue as? GrLiteral)?.value?.toString()
+                    if (name != null && value != null) {
+                        logDebug("ext[\"$name\"] = $value")
+                        properties[name] = value
+                    }
+                }
+            }
+        })
     }
+
+    private fun parseKotlinGradleFile(file: KtFile, properties: MutableMap<String, String>) {
+        logDebug("Repository (PSI): Analyzing Kotlin Gradle file: ${file.name}")
+
+        file.accept(object : KtTreeVisitorVoid() {
+            override fun visitBinaryExpression(expression: KtBinaryExpression) {
+                super.visitBinaryExpression(expression)
+
+                if (expression.operationReference.getReferencedName() == "=") {
+                    val left = expression.left
+                    val right = expression.right
+
+                    // extra["key"] = "value"
+                    if (left is KtArrayAccessExpression && (left.arrayExpression?.text == "extra" || left.arrayExpression?.text?.endsWith(".extra") == true)) {
+                        val name = left.indexExpressions.firstOrNull()?.text?.trim('"')
+                        val value = (right as? KtStringTemplateExpression)?.entries?.joinToString("") { it.text }?.trim('"')
+                        if (name != null && value != null) {
+                            logDebug("extra[\"$name\"] = $value")
+                            properties[name] = value
+                        }
+                    }
+                }
+            }
+
+            override fun visitCallExpression(expression: KtCallExpression) {
+                super.visitCallExpression(expression)
+
+                val callee = expression.calleeExpression?.text
+                if (callee == "set" && (expression.getQualifiedExpressionForSelector()?.receiverExpression?.text == "extra"
+                            || expression.getQualifiedExpressionForSelector()?.receiverExpression?.text?.endsWith(".extra") == true)
+                ) {
+                    val args = expression.valueArguments
+                    if (args.size >= 2) {
+                        val name = args[0].text.trim('"')
+                        val value = args[1].text.trim('"')
+                        logDebug("extra.set(\"$name\", \"$value\")")
+                        properties[name] = value
+                    }
+                }
+            }
+        })
+    }
+
 
 
     fun getAllTasksStable(): List<String> {
