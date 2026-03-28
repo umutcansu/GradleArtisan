@@ -19,6 +19,9 @@ repositories {
 dependencies {
     intellijPlatform {
         intellijIdeaCommunity("2024.3.5")
+        bundledPlugin("com.intellij.gradle")
+        bundledPlugin("org.jetbrains.kotlin")
+        bundledPlugin("org.intellij.groovy")
         
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
