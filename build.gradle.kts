@@ -18,12 +18,12 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        androidStudio("2025.2.1.6")
-        //androidStudio("2024.3.2.15")
+        intellijIdeaCommunity("2024.3.5")
+        
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
 
-        bundledPlugin("org.jetbrains.android")
+        
 
     }
 }
