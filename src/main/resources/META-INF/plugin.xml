@@ -34,7 +34,7 @@
       <li><b>Intelligent Autocomplete:</b> Simply type <code>$</code> in the template field to invoke a native-style completion popup, suggesting the discovered variables. It fully supports keyboard navigation.</li>
       <li><b>Dynamic UI:</b> As you type a template (e.g., <code>assemble$TIER$ENV</code>), the UI automatically generates input fields for each variable, pre-filled with default values from your build script.</li>
       <li><b>Flexible Execution:</b> A dedicated checkbox lets you decide whether to run the task with the values currently in the UI fields or to use the absolute latest values from the build file at the moment of execution.</li>
-      <li><b>Save & Manage Templates:</b> Save your dynamic task configurations with custom names. Load, update, or delete them from a dedicated list. You can even add a fully constructed dynamic task to your main Favorites list.</li>
+      <li><b>Save &amp; Manage Templates:</b> Save your dynamic task configurations with custom names. Load, update, or delete them from a dedicated list. You can even add a fully constructed dynamic task to your main Favorites list.</li>
     </ul>
   </li>
 </ul>
@@ -48,8 +48,11 @@
     <depends optional="true" config-file="android-support.xml">org.jetbrains.android</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
-
     <extensions defaultExtensionNs="com.intellij">
-
+        <toolWindow
+                id="Gradle Artisan"
+                anchor="bottom"
+                icon="/icons/pluginIcon.svg"
+                factoryClass="io.github.umutcansu.gradleartisan.toolwindow.GradleTaskWindowFactory"/>
     </extensions>
 </idea-plugin>
