@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.15"
+version = "1.0.16"
 
 repositories {
     mavenCentral()
