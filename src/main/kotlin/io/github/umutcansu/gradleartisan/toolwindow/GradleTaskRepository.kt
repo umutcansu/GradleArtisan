@@ -1,6 +1,6 @@
 package io.github.umutcansu.gradleartisan.services
 
-import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ProjectKeys
@@ -44,12 +44,12 @@ class GradleTaskRepository(private val project: Project) {
     fun getAllGradleExtProperties(): Map<String, String> {
         val properties = mutableMapOf<String, String>()
 
-        runReadAction {
+        ReadAction.run<RuntimeException> {
             logDebug("Repository (PSI): Scanning all Gradle files...")
             val psiManager = PsiManager.getInstance(project)
 
             val projectBaseDir = project.basePath
-                ?.let { VirtualFileManager.getInstance().findFileByNioPath(Paths.get(it)) } ?: return@runReadAction
+                ?.let { VirtualFileManager.getInstance().findFileByNioPath(Paths.get(it)) } ?: return@run
 
 
             val gradleFiles = mutableListOf<VirtualFile>()
