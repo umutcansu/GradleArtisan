@@ -180,7 +180,7 @@ class DynamicRunnerTab(
                         hasUnsavedChanges = true
                     }
                 }
-            })
+            }, project)
 
 
             editor.contentComponent.addKeyListener(object : KeyAdapter() {
@@ -341,7 +341,7 @@ class DynamicRunnerTab(
 
     private fun findVariablesInTemplate(template: String, knownVariables: Set<String>): Set<String> {
         val foundVariables = mutableSetOf<String>()
-        val regex = "\\\$([a-zA-Z0-9_]+)".toRegex()
+        val regex = "\\$([a-zA-Z0-9_]+)".toRegex()
 
         regex.findAll(template).forEach { matchResult ->
             val potentialVar = matchResult.groupValues[1]
