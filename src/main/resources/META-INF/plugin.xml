@@ -19,7 +19,7 @@
   </li>
   <br/>
   <li>
-    <b>One-Click Execution with Status Feedback:</b> Run any task from the list with a simple right-click. The UI provides immediate visual feedback for each task's status
+    <b>One-Click Execution with Status Feedback:</b> Run any task from the list with a simple right-click. The UI provides immediate visual feedback for each task's status.
     The status icon remains until the next refresh, so you always know the result of the last run.
   </li>
   <br/>
@@ -46,6 +46,8 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
+    <depends>org.jetbrains.kotlin</depends>
+    <depends>org.intellij.groovy</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
@@ -53,5 +55,9 @@
                 anchor="bottom"
                 icon="/icons/pluginIcon.svg"
                 factoryClass="io.github.umutcansu.gradleartisan.toolwindow.GradleTaskWindowFactory"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true" />
     </extensions>
 </idea-plugin>
