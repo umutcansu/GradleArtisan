@@ -40,7 +40,11 @@ intellijPlatform {
 
         changeNotes = """
             Summary:
-            Change parsePsiGradleFile structure
+            Restored full Android task list on Android Studio Panda (2024.2+ / build 253.x).
+            Declared an optional dependency on the Android plugin so the existing
+            Android model reflection regains classloader access, and hardened the
+            reflection helpers to swallow LinkageError so a single missing class
+            no longer aborts task discovery for the whole module.
         """.trimIndent()
     }
     publishing {

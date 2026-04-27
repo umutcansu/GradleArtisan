@@ -214,47 +214,64 @@ class GradleTaskRepository(private val project: Project) {
     }
 
     private fun processAndroidTasksWithReflection(module: DataNode<ModuleData>, allTasks: MutableSet<String>) {
+        val candidateModelClassNames = listOf(
+            "com.android.tools.idea.gradle.project.model.GradleAndroidModelData",
+            "com.android.tools.idea.gradle.model.GradleAndroidModelData",
+            "com.android.tools.idea.gradle.project.model.GradleAndroidModel"
+        )
+
+        val modelClass = candidateModelClassNames.firstNotNullOfOrNull {
+            try { Class.forName(it) }
+            catch (_: ClassNotFoundException) { null }
+            catch (_: LinkageError) { null }
+        }
+        if (modelClass == null) {
+            logDebug("Repository: No Android model class found on classpath; skipping Android tasks.")
+            return
+        }
+
         try {
-            val modelClassName = "com.android.tools.idea.gradle.project.model.GradleAndroidModelData"
-            val modelClass = Class.forName(modelClassName) // ClassNotFoundException fırlatabilir
-
             val androidModelDataNode = module.children.find { modelClass.isInstance(it.data) }
-            val androidModel: Any? = androidModelDataNode?.data // Tip 'Any?' oldu
+            val androidModel: Any = androidModelDataNode?.data ?: return
 
-            if (androidModel != null) {
+            val androidProject = invokeAny(androidModel, "getAndroidProject", "androidProject")
+            val variantsBuildInfo = androidProject?.let {
+                invokeAny(it, "getVariantsBuildInformation", "variantsBuildInformation")
+            } as? Collection<*>
+            variantsBuildInfo?.forEach { variantInfo ->
+                if (variantInfo == null) return@forEach
+                val buildInfo = invokeAny(variantInfo, "getBuildInformation", "buildInformation")
+                    ?: variantInfo // bazı sürümlerde VariantBuildInformation'ın kendisi task alanlarını taşıyor
+                addTask(invokeAny(buildInfo, "getAssembleTaskName", "assembleTaskName"), allTasks)
+                addTask(invokeAny(buildInfo, "getBundleTaskName", "bundleTaskName"), allTasks)
+                addTask(invokeAny(buildInfo, "getApkFromBundleTaskName", "apkFromBundleTaskName"), allTasks)
+            }
 
-                val androidProject = safeInvoke(androidModel, "getAndroidProject")
-                (androidProject?.let { safeInvoke(it, "getVariantsBuildInformation") } as? Collection<*>)?.forEach { variantInfo ->
-                    val buildInfo = variantInfo?.let { safeInvoke(it, "getBuildInformation") }
-                    if (buildInfo != null) {
-                        addTask(safeInvoke(buildInfo, "getAssembleTaskName"), allTasks)
-                        addTask(safeInvoke(buildInfo, "getBundleTaskName"), allTasks)
-                        addTask(safeInvoke(buildInfo, "getApkFromBundleTaskName"), allTasks)
-                    }
+            (invokeAny(androidModel, "getVariants", "variants") as? Collection<*>)?.forEach { variant ->
+                if (variant == null) return@forEach
+
+                val mainArtifact = invokeAny(variant, "getMainArtifact", "mainArtifact")
+                if (mainArtifact != null) {
+                    addTask(invokeAny(mainArtifact, "getCompileTaskName", "compileTaskName"), allTasks)
+                    addTask(invokeAny(mainArtifact, "getAssembleTaskName", "assembleTaskName"), allTasks)
                 }
 
-                (safeInvoke(androidModel, "getVariants") as? Collection<*>)?.forEach { variant ->
-                    if (variant == null) return@forEach
+                // AGP/Studio sürümüne göre test artifact'ları çoğul koleksiyon ya da tekil olabilir.
+                val hostTestArtifacts = collectArtifacts(
+                    variant,
+                    collectionMethods = listOf("getHostTestArtifacts", "hostTestArtifacts"),
+                    singularMethods = listOf("getUnitTestArtifact", "unitTestArtifact")
+                )
+                val deviceTestArtifacts = collectArtifacts(
+                    variant,
+                    collectionMethods = listOf("getDeviceTestArtifacts", "deviceTestArtifacts"),
+                    singularMethods = listOf("getAndroidTestArtifact", "androidTestArtifact")
+                )
+                val testFixturesArtifact = invokeAny(variant, "getTestFixturesArtifact", "testFixturesArtifact")
 
-                    val mainArtifact = safeInvoke(variant, "getMainArtifact")
-                    if (mainArtifact != null) {
-                        addTask(safeInvoke(mainArtifact, "getCompileTaskName"), allTasks)
-                        addTask(safeInvoke(mainArtifact, "getAssembleTaskName"), allTasks)
-                    }
-
-                    (safeInvoke(variant, "getHostTestArtifacts") as? Collection<*>)?.forEach { artifact ->
-                        if (artifact != null) {
-                            addTask(safeInvoke(artifact, "getCompileTaskName"), allTasks)
-                            addTask(safeInvoke(artifact, "getAssembleTaskName"), allTasks)
-                        }
-                    }
-
-                    (safeInvoke(variant, "getDeviceTestArtifacts") as? Collection<*>)?.forEach { artifact ->
-                        if (artifact != null) {
-                            addTask(safeInvoke(artifact, "getCompileTaskName"), allTasks)
-                            addTask(safeInvoke(artifact, "getAssembleTaskName"), allTasks)
-                        }
-                    }
+                (hostTestArtifacts + deviceTestArtifacts + listOfNotNull(testFixturesArtifact)).forEach { artifact ->
+                    addTask(invokeAny(artifact, "getCompileTaskName", "compileTaskName"), allTasks)
+                    addTask(invokeAny(artifact, "getAssembleTaskName", "assembleTaskName"), allTasks)
                 }
             }
         } catch (e: Throwable) {
@@ -263,15 +280,37 @@ class GradleTaskRepository(private val project: Project) {
         }
     }
 
-    private fun safeInvoke(receiver: Any, methodName: String): Any? {
-        return try {
-            val method = receiver.javaClass.getMethod(methodName)
-            method.invoke(receiver)
-        } catch (e: Exception) {
-            logDebug("safeInvoke failed for '$methodName' on ${receiver.javaClass.simpleName}: ${e.message}")
-            null
+    private fun collectArtifacts(
+        variant: Any,
+        collectionMethods: List<String>,
+        singularMethods: List<String>
+    ): List<Any> {
+        (invokeAny(variant, *collectionMethods.toTypedArray()) as? Collection<*>)?.let { col ->
+            return col.filterNotNull()
         }
+        val single = invokeAny(variant, *singularMethods.toTypedArray())
+        return listOfNotNull(single)
     }
+
+    private fun invokeAny(receiver: Any, vararg methodNames: String): Any? {
+        for (name in methodNames) {
+            try {
+                return receiver.javaClass.getMethod(name).invoke(receiver)
+            } catch (_: NoSuchMethodException) {
+                // bir sonrakini dene
+            } catch (e: ReflectiveOperationException) {
+                logDebug("invokeAny failed for '$name' on ${receiver.javaClass.simpleName}: ${e.message}")
+                return null
+            } catch (e: LinkageError) {
+                logDebug("invokeAny linkage error for '$name' on ${receiver.javaClass.simpleName}: ${e.message}")
+                return null
+            }
+        }
+        logDebug("invokeAny: none of ${methodNames.toList()} found on ${receiver.javaClass.simpleName}")
+        return null
+    }
+
+    private fun safeInvoke(receiver: Any, methodName: String): Any? = invokeAny(receiver, methodName)
 
     private fun addTask(task: Any?, allTasks: MutableSet<String>) {
         (task as? String)?.let {
