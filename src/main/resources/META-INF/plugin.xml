@@ -48,7 +48,6 @@
     <depends>org.jetbrains.plugins.gradle</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.intellij.groovy</depends>
-    <depends optional="true" config-file="android-support.xml">org.jetbrains.android</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow

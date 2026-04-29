@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.umutcansu.GradleArtisan"
-version = "1.0.20"
+version = "1.0.21"
 
 repositories {
     mavenCentral()
@@ -40,11 +40,13 @@ intellijPlatform {
 
         changeNotes = """
             Summary:
-            Restored full Android task list on Android Studio Panda (2024.2+ / build 253.x).
-            Declared an optional dependency on the Android plugin so the existing
-            Android model reflection regains classloader access, and hardened the
-            reflection helpers to swallow LinkageError so a single missing class
-            no longer aborts task discovery for the whole module.
+            Fixed Android task discovery on Android Studio Panda (2024.2+ / build 253.x).
+            Replaced the classloader-dependent Class.forName lookup with runtime
+            class-name matching on DataNode children, so the plugin now finds AGP
+            tasks (assemble*, bundle*, compile*, test*) regardless of host IDE
+            plugin module isolation. The previous optional dependency on
+            org.jetbrains.android was silently inactive on AS 253.x and has been
+            removed.
         """.trimIndent()
     }
     publishing {

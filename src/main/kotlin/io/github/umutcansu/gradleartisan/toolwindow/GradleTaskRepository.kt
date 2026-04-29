@@ -34,6 +34,12 @@ class GradleTaskRepository(private val project: Project) {
     companion object {
         private val LOG = Logger.getInstance(GradleTaskRepository::class.java)
         private const val IS_LOGGING_ENABLED = true
+
+        private val ANDROID_MODEL_CLASS_NAMES = setOf(
+            "com.android.tools.idea.gradle.project.model.GradleAndroidModelData",
+            "com.android.tools.idea.gradle.model.GradleAndroidModelData",
+            "com.android.tools.idea.gradle.project.model.GradleAndroidModel"
+        )
     }
 
     fun logDebug(message: String) {
@@ -185,6 +191,7 @@ class GradleTaskRepository(private val project: Project) {
     fun getAllTasksStable(): List<String> {
         logDebug("Repository: Searching for all Gradle tasks...")
         val allTasks = mutableSetOf<String>()
+        val unmatchedAndroidLikeClasses = mutableSetOf<String>()
 
         try {
             val projectBasePath = project.basePath ?: return emptyList()
@@ -202,37 +209,49 @@ class GradleTaskRepository(private val project: Project) {
                     logDebug("Repository: Error fetching standard tasks for module ${module.data.id}: ${e.message}")
                 }
 
-                processAndroidTasksWithReflection(module, allTasks)
+                processAndroidTasksWithReflection(module, allTasks, unmatchedAndroidLikeClasses)
             }
 
         } catch (e: Throwable) {
             logDebug("Repository: Critical error during task search: ${e.message}")
         }
 
+        if (unmatchedAndroidLikeClasses.isNotEmpty()) {
+            logDebug("Repository: Diagnostic — Android-like data class names seen in module children that did NOT match " +
+                    "ANDROID_MODEL_CLASS_NAMES. If task discovery is incomplete, add the relevant entry below to that set: " +
+                    unmatchedAndroidLikeClasses.sorted())
+        }
+
         logDebug("Repository: A total of ${allTasks.size} unique tasks were found.")
         return allTasks.sorted()
     }
 
-    private fun processAndroidTasksWithReflection(module: DataNode<ModuleData>, allTasks: MutableSet<String>) {
-        val candidateModelClassNames = listOf(
-            "com.android.tools.idea.gradle.project.model.GradleAndroidModelData",
-            "com.android.tools.idea.gradle.model.GradleAndroidModelData",
-            "com.android.tools.idea.gradle.project.model.GradleAndroidModel"
-        )
-
-        val modelClass = candidateModelClassNames.firstNotNullOfOrNull {
-            try { Class.forName(it) }
-            catch (_: ClassNotFoundException) { null }
-            catch (_: LinkageError) { null }
+    private fun matchesAndroidModel(data: Any?): Boolean {
+        var c: Class<*>? = data?.javaClass ?: return false
+        while (c != null) {
+            if (c.name in ANDROID_MODEL_CLASS_NAMES) return true
+            c = c.superclass
         }
-        if (modelClass == null) {
-            logDebug("Repository: No Android model class found on classpath; skipping Android tasks.")
-            return
-        }
+        return false
+    }
 
+    private fun processAndroidTasksWithReflection(
+        module: DataNode<ModuleData>,
+        allTasks: MutableSet<String>,
+        unmatchedAndroidLikeClasses: MutableSet<String>
+    ) {
         try {
-            val androidModelDataNode = module.children.find { modelClass.isInstance(it.data) }
-            val androidModel: Any = androidModelDataNode?.data ?: return
+            val androidModelDataNode = module.children.find { matchesAndroidModel(it.data) }
+            if (androidModelDataNode == null) {
+                module.children.forEach { child ->
+                    val name = child.data?.javaClass?.name ?: return@forEach
+                    if (name.contains("android", ignoreCase = true) && name !in ANDROID_MODEL_CLASS_NAMES) {
+                        unmatchedAndroidLikeClasses.add(name)
+                    }
+                }
+                return
+            }
+            val androidModel: Any = androidModelDataNode.data
 
             val androidProject = invokeAny(androidModel, "getAndroidProject", "androidProject")
             val variantsBuildInfo = androidProject?.let {
